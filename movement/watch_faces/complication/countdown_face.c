@@ -23,11 +23,26 @@
  * SOFTWARE.
  */
 
+//-----------------------------------------------------------------------------
+
 #include <stdlib.h>
 #include <string.h>
 #include "countdown_face.h"
 #include "watch.h"
 #include "watch_utility.h"
+
+/*
+    Slight extension of the original countdown face by Wesley Ellis.
+
+    - Press the light button to enter setting mode and adjust the
+      countdown timer.
+
+    - Start and pause the countdown using the alarm button, similar to the
+      stopwatch face.
+
+    - When paused or terminated, press the light button to restore the
+      last entered countdown.
+*/
 
 #define CD_SELECTIONS 3
 #define DEFAULT_MINUTES 3
@@ -76,7 +91,7 @@ static void start(countdown_state_t *state, movement_settings_t *settings) {
     state->target_ts = watch_utility_offset_timestamp(state->now_ts, state->hours, state->minutes, state->seconds);
     watch_date_time target_dt = watch_utility_date_time_from_unix_time(state->target_ts, get_tz_offset(settings));
     movement_schedule_background_task(target_dt);
-    watch_set_indicator(WATCH_INDICATOR_BELL);
+    watch_set_indicator(WATCH_INDICATOR_SIGNAL);
 }
 
 static void draw(countdown_state_t *state, uint8_t subsecond) {
@@ -124,13 +139,13 @@ static void draw(countdown_state_t *state, uint8_t subsecond) {
 static void pause(countdown_state_t *state) {
     state->mode = cd_paused;
     movement_cancel_background_task();
-    watch_clear_indicator(WATCH_INDICATOR_BELL);
+    watch_clear_indicator(WATCH_INDICATOR_SIGNAL);
 }
 
 static void reset(countdown_state_t *state) {
     state->mode = cd_reset;
     movement_cancel_background_task();
-    watch_clear_indicator(WATCH_INDICATOR_BELL);
+    watch_clear_indicator(WATCH_INDICATOR_SIGNAL);
     load_countdown(state);
 }
 
@@ -177,7 +192,7 @@ void countdown_face_activate(movement_settings_t *settings, void *context) {
     if(state->mode == cd_running) {
         watch_date_time now = watch_rtc_get_date_time();
         state->now_ts = watch_utility_date_time_to_unix_time(now, get_tz_offset(settings));
-        watch_set_indicator(WATCH_INDICATOR_BELL);
+        watch_set_indicator(WATCH_INDICATOR_SIGNAL);
     }
     watch_set_colon();
 
@@ -243,7 +258,7 @@ bool countdown_face_loop(movement_event_t event, movement_settings_t *settings, 
                     pause(state);
                     button_beep(settings);
                     break;
-                case cd_reset:
+                case cd_reset: movement_move_to_face(0);
                 case cd_paused:
                     if (!(state->hours == 0 && state->minutes == 0 && state->seconds == 0)) {
                         // Only start the timer if we have a valid time.
